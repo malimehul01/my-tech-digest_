@@ -31,12 +31,20 @@ FEEDS = {
 
     "Global AI Market & Tools": [
         "https://techcrunch.com/category/artificial-intelligence/feed/",
-        "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml",
+        "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
     ],
 }
 
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "")
+# Comma-separated list; primary busy ho to ye order mein try honge
+FALLBACK_MODELS = [
+    m.strip()
+    for m in os.getenv(
+        "GEMINI_FALLBACK_MODELS",
+        "gemini-3.6-flash,gemini-3.1-flash-lite"
+    ).split(",")
+    if m.strip()
+]
 
 MAX_ITEMS_PER_FEED = 5
 REQUEST_TIMEOUT = 25
@@ -286,13 +294,13 @@ RAW NEWS DATA:
 # 5. GEMINI AI SUMMARY GENERATION
 # ==========================================
 
-def _call_gemini(model, prompt, api_key, max_retries=4):
+def _call_gemini(model, prompt, api_key, max_retries=3):
     endpoint = (
         "https://generativelanguage.googleapis.com/"
         f"v1beta/models/{model}:generateContent"
     )
 
-    delay = 15
+    delay = 10
 
     for attempt in range(1, max_retries + 1):
 
@@ -350,8 +358,9 @@ def generate_summary(prompt):
         raise RuntimeError("GEMINI_API_KEY GitHub Secret missing.")
 
     models = [GEMINI_MODEL]
-    if FALLBACK_MODEL and FALLBACK_MODEL != GEMINI_MODEL:
-        models.append(FALLBACK_MODEL)
+    for m in FALLBACK_MODELS:
+        if m not in models:
+            models.append(m)
 
     data = None
     last_error = None
